@@ -19,7 +19,8 @@ def build_demo_project(destination) -> Path:
     last_change = today - dt.timedelta(days=8)
 
     (root / "README.md").write_text(
-        "# photo-globe\n\nA tiny generated project used to demonstrate unpark.\n"
+        "# photo-globe\n\nA tiny generated project used to demonstrate unpark.\n",
+        encoding="utf-8",
     )
     _git_commit(root, "start photo-globe", started)
 
@@ -68,7 +69,7 @@ python -m http.server 8765
 ## Distribute
 
 There is nothing to distribute; `unpark demo` regenerates this project.
-""")
+""", encoding="utf-8")
     _git_commit(root, "add re-entry briefing", briefing_date)
 
     (root / "index.html").write_text("""<!doctype html>
@@ -78,10 +79,11 @@ There is nothing to distribute; `unpark demo` regenerates this project.
 display:grid;place-items:center;min-height:90vh}.globe{font-size:8rem}</style>
 <main><div class="globe">🌍</div><h1>photo-globe</h1>
 <p>A tiny project, successfully unparked.</p></main>
-""")
+""", encoding="utf-8")
     _git_commit(root, "polish globe landing page", last_change)
     (root / "IDEAS.md").write_text(
-        "Untracked on purpose: add drag-and-drop photo import.\n"
+        "Untracked on purpose: add drag-and-drop photo import.\n",
+        encoding="utf-8",
     )
     return root
 

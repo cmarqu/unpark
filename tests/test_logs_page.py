@@ -24,7 +24,7 @@ name: fixture
 - background: true
 
 ```sh
-echo hello-from-the-log
+python -c "print('hello-from-the-log')"
 python -c "import time; time.sleep(30)"
 ```
 """

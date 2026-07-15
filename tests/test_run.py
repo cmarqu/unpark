@@ -16,11 +16,11 @@ name: fixture
 ### hello
 
 ```sh
-echo one >> out.txt
+python -c "from pathlib import Path; Path('out.txt').open('a').write('one\\n')"
 ```
 
 ```sh
-echo two >> out.txt
+python -c "from pathlib import Path; Path('out.txt').open('a').write('two\\n')"
 ```
 
 ### subdir
@@ -28,18 +28,17 @@ echo two >> out.txt
 - dir: web
 
 ```sh
-echo here > loc.txt
+python -c "from pathlib import Path; Path('loc.txt').write_text('here\\n')"
 ```
 
 ### broken
 
 ```sh
-echo before >> trail.txt
-exit 3
+python -c "from pathlib import Path; Path('trail.txt').open('a').write('before\\n'); raise SystemExit(3)"
 ```
 
 ```sh
-echo after >> trail.txt
+python -c "from pathlib import Path; Path('trail.txt').open('a').write('after\\n')"
 ```
 
 ### publish
@@ -47,7 +46,7 @@ echo after >> trail.txt
 - needs: hello
 
 ```sh
-echo pub >> out.txt
+python -c "from pathlib import Path; Path('out.txt').open('a').write('pub\\n')"
 ```
 
 ### speak

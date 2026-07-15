@@ -28,14 +28,14 @@ name: fixture
 - url: http://localhost:9999
 
 ```sh
-echo started
+python -c "print('started')"
 python -c "import time; time.sleep(30)"
 ```
 
 ### fg-only
 
 ```sh
-echo not a background recipe
+python -c "print('not a background recipe')"
 ```
 
 ### dies
@@ -43,8 +43,7 @@ echo not a background recipe
 - background: true
 
 ```sh
-echo "boom: port already in use"
-exit 7
+python -c "print('boom: port already in use'); raise SystemExit(7)"
 ```
 """
 

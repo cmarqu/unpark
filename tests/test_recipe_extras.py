@@ -17,8 +17,8 @@ name: extras
 ### echoargs
 
 ```sh
-echo start > out.txt
-echo hello >> out.txt
+python -c "from pathlib import Path; Path('out.txt').write_text('start\\n')"
+python -c "import pathlib,sys; pathlib.Path('out.txt').open('a').write(' '.join(sys.argv[1:]) + '\\n')" hello
 ```
 
 ### enviro

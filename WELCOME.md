@@ -54,14 +54,14 @@ chosen registered project's briefing through `--pick` or `unpark project NAME`.
 The release workflow builds only version-matching `v*` tags and publishes the
 artifact through the configured PyPI Trusted Publisher and `pypi` Environment.
 
-The first public CI run exposed Windows-only assumptions in process tests and
-global-skill home resolution. The test fixtures now use Python instead of
-Unix-only commands; managed dashboard cleanup and command argument quoting
-also have Windows paths.
+The first public CI run exposed Windows-only assumptions in process tests,
+legacy text encodings, and non-canonical temporary paths. Generated files now
+use UTF-8, managed recipes track a stable wrapper on Windows, and workspace
+targets resolve to a single canonical path.
 
 Known issues:
-- The initial public CI and PyPI run failed; the fixes need a new public commit
-  and release tag.
+- The initial public CI and PyPI run failed; the repaired matrix needs a new
+  public commit and release tag.
 - The dashboard/manual implementation remains the largest module and can be
   split further when a concrete maintenance need appears.
 - A dashboard screenshot remains optional release polish.

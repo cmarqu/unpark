@@ -1047,6 +1047,7 @@ def serve_dashboard(root, w: Welcome, timeout: float = 120.0,
 
     class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
         daemon_threads = True
+        allow_reuse_address = True
 
     with Server(("127.0.0.1", 0), Handler) as srv:
         srv.timeout = 0.25  # poll so deadlines are honored
@@ -1214,7 +1215,12 @@ def start_recipe(root, w: Welcome, name: str, attached: bool = False) -> int:
     env = recipe_env(root, r)
     if os.name == "nt":
         script = " && ".join(r.steps)
-        argv, use_shell = script, True
+        # Track a Python wrapper rather than cmd.exe. cmd.exe can exit before
+        # the recipe child, leaving a pidfile for a shell that is already gone.
+        argv = [sys.executable, "-c",
+                "import subprocess, sys; raise SystemExit("
+                "subprocess.call(sys.argv[1], shell=True))", script]
+        use_shell = False
     else:
         script = "set -e\n" + "\n".join(r.steps)
         argv, use_shell = ["/bin/sh", "-c", script], False
@@ -1232,7 +1238,7 @@ def start_recipe(root, w: Welcome, name: str, attached: bool = False) -> int:
         logf = open(log, "ab")
         if os.name == "nt":
             proc = subprocess.Popen(
-                argv, shell=True, cwd=str(cwd), stdout=logf, stderr=logf,
+                argv, shell=use_shell, cwd=str(cwd), stdout=logf, stderr=logf,
                 stdin=subprocess.DEVNULL, env=env,
                 creationflags=getattr(subprocess,
                                       "CREATE_NEW_PROCESS_GROUP", 0),
@@ -1659,16 +1665,20 @@ def vscode_target(root, w: Welcome) -> Path:
     → the folder itself. A VS Code terminal does not expose the running
     workspace file in the environment, so detection is by convention.
     """
-    root = Path(root)
+    # Resolve once at the boundary. macOS exposes /var through a symlink,
+    # and Windows may use an 8.3 spelling for the same temporary directory.
+    root = Path(root).resolve()
     ws = w.meta.get("workspace")
     if ws:
-        p = root / ws
+        p = Path(ws)
+        if not p.is_absolute():
+            p = root / p
         if p.is_file():
-            return p
+            return p.resolve()
     for pattern_dir in (root, root / ".vscode"):
         found = sorted(pattern_dir.glob("*.code-workspace"))
         if found:
-            return found[0]
+            return found[0].resolve()
     return root
 
 
@@ -1809,9 +1819,11 @@ def spawn_project_dashboard(project_root) -> "dict | None":
             child._child_created = False
             return {"url": m.group(0).decode(), "pid": child.pid}
         if child.poll() is not None:
+            child.wait()
             return None
         time.sleep(0.1)
-    child._child_created = False
+    _terminate(child.pid)
+    child.wait()
     return None
 
 
@@ -1822,9 +1834,9 @@ def _code_api_response(target: str, default_root=None) -> "tuple":
     if target:
         if Path(target).resolve() not in registry_load():
             return 400, {"ok": False, "error": "not a registered project"}
-        root = Path(target)
+        root = Path(target).resolve()
     elif default_root is not None:
-        root = Path(default_root)
+        root = Path(default_root).resolve()
     else:
         return 400, {"ok": False, "error": "no project"}
     res = open_vscode(root)
@@ -1840,7 +1852,7 @@ def _open_api_response(target: str) -> "tuple":
     should still be an explicit opt-in."""
     if not target or Path(target).resolve() not in registry_load():
         return 400, {"ok": False, "error": "not a registered project"}
-    res = spawn_project_dashboard(Path(target))
+    res = spawn_project_dashboard(Path(target).resolve())
     if res:
         return 200, {"ok": True, **res}
     return 500, {"ok": False, "error": "dashboard failed to start"}
@@ -3554,7 +3566,7 @@ The optional `wb` shorthand means “welcome back”. The dashboard
                 return 0
             page = render_portfolio_html(projects, args.dir)
             if args.out:
-                Path(args.out).write_text(page)
+                Path(args.out).write_text(page, encoding="utf-8")
                 print(f"wrote {args.out}")
                 if args.open:
                     open_browser(Path(args.out).resolve().as_uri())
@@ -3649,7 +3661,7 @@ The optional `wb` shorthand means “welcome back”. The dashboard
         page = render_html(w, _derived(root, w))
         if args.out:
             out = Path(args.out)
-            out.write_text(page)
+            out.write_text(page, encoding="utf-8")
             print(f"wrote {out}")
             if args.open:
                 open_browser(out.resolve().as_uri())
