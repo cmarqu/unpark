@@ -28,13 +28,18 @@ from .parser import parse_welcome
 from .demo import build_demo_project
 from .pager import display as display_text
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 _ATTACHED_PIDS = set()
 
 
 def _env(name: str):
     """Read an unpark environment setting."""
     return os.environ.get(f"UNPARK_{name}")
+
+
+def _home() -> Path:
+    """Home directory, honoring HOME as an explicit portable override."""
+    return Path(os.environ.get("HOME") or Path.home())
 
 
 def _safe_host_header(value: str) -> bool:
@@ -349,8 +354,10 @@ def run_recipe(root, w: Welcome, name: str, _seen=None,
         return 2
     steps = list(r.steps)
     if extra_args:
-        steps[-1] = steps[-1] + " " + " ".join(
-            shlex.quote(a) for a in extra_args)
+        quoted = (subprocess.list2cmdline(extra_args)
+                  if os.name == "nt"
+                  else " ".join(shlex.quote(a) for a in extra_args))
+        steps[-1] = steps[-1] + " " + quoted
     env = recipe_env(root, r)
     for i, step in enumerate(steps, 1):
         print(f"[{name}] step {i}/{len(steps)}: {step.splitlines()[0]}"
@@ -863,7 +870,7 @@ def open_browser(url: str) -> None:
         try:
             subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL,
-                             cwd=Path.home())  # cmd.exe dislikes WSL cwd
+                             cwd=_home())  # cmd.exe dislikes WSL cwd
             return
         except OSError:
             pass
@@ -1000,7 +1007,7 @@ def serve_dashboard(root, w: Welcome, timeout: float = 120.0,
                 rc = cmd_skill(root, False, True)
                 sys.stdout.flush()
                 self._json({"ok": rc == 0, "wrote": [str(
-                    Path.home() / ".claude" / "skills" / "unpark-upkeep"
+                    _home() / ".claude" / "skills" / "unpark-upkeep"
                     / "SKILL.md")]})
                 return seen()
             if self.path == "/api/skill/local":
@@ -1068,10 +1075,10 @@ def state_dir(root) -> Path:
     if base:
         base = Path(base)
     elif os.name == "nt":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "unpark"
+        base = Path(os.environ.get("LOCALAPPDATA", _home())) / "unpark"
     else:
         base = Path(os.environ.get("XDG_STATE_HOME",
-                                   Path.home() / ".local" / "state")) / "unpark"
+                                   _home() / ".local" / "state")) / "unpark"
     resolved = str(Path(root).resolve())
     tag = hashlib.sha1(resolved.encode()).hexdigest()[:8]
     d = base / f"{Path(resolved).name}-{tag}"
@@ -1491,7 +1498,7 @@ def is_skeleton_welcome(w: Welcome) -> bool:
 
 
 def _skill_covered(root=None) -> bool:
-    home_skill = (Path.home() / ".claude" / "skills" / "unpark-upkeep"
+    home_skill = (_home() / ".claude" / "skills" / "unpark-upkeep"
                   / "SKILL.md")
     if home_skill.exists():
         return True
@@ -1610,7 +1617,7 @@ def cmd_check(root, w: Welcome, welcome_file=None, strict: bool = False) -> int:
          skill_copy_current(Path(root) / ".claude" / "skills"
                             / "unpark-upkeep" / "SKILL.md"), ""),
         ("global skill (~/.claude/skills)",
-         skill_copy_current(Path.home() / ".claude" / "skills"
+         skill_copy_current(_home() / ".claude" / "skills"
                             / "unpark-upkeep" / "SKILL.md"), " --global"),
     )
     for label, state, flag in copy_states:
@@ -1735,10 +1742,10 @@ def registry_file() -> Path:
     if base:
         base = Path(base)
     elif os.name == "nt":
-        base = Path(os.environ.get("APPDATA", Path.home())) / "unpark"
+        base = Path(os.environ.get("APPDATA", _home())) / "unpark"
     else:
         base = Path(os.environ.get("XDG_CONFIG_HOME",
-                                   Path.home() / ".config")) / "unpark"
+                                   _home() / ".config")) / "unpark"
     return base / "projects.json"
 
 
@@ -1791,6 +1798,8 @@ def spawn_project_dashboard(project_root) -> "dict | None":
              "html", "--no-open"],
             stdout=logf, stderr=logf, stdin=subprocess.DEVNULL,
             start_new_session=(os.name != "nt"),
+            creationflags=(getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                           if os.name == "nt" else 0),
             env=dict(os.environ, UNPARK_NO_BROWSER="1"),
         )
     deadline = time.monotonic() + 8
@@ -2368,15 +2377,15 @@ def cmd_skill(root, install: bool, global_: bool = False,
         selected = list(dict.fromkeys(selected))
         for target in selected:
             if target == "claude":
-                skill = (Path.home() / ".claude" / "skills" /
+                skill = (_home() / ".claude" / "skills" /
                          "unpark-upkeep" / "SKILL.md")
                 skill.parent.mkdir(parents=True, exist_ok=True)
                 skill.write_text(_claude_skill_text(True))
             elif target == "codex":
-                skill = Path.home() / ".codex" / "AGENTS.md"
+                skill = _home() / ".codex" / "AGENTS.md"
                 _upsert_agents_block(skill)
             elif target == "copilot":
-                skill = (Path.home() / ".copilot" / "instructions" /
+                skill = (_home() / ".copilot" / "instructions" /
                          "unpark.instructions.md")
                 skill.parent.mkdir(parents=True, exist_ok=True)
                 skill.write_text("---\napplyTo: \"**\"\n---\n\n" +
@@ -2857,7 +2866,7 @@ def _docs_context(start) -> dict:
             name = parse_welcome(found[1].read_text()).meta.get("name")
         except OSError:
             pass
-    global_skill = (Path.home() / ".claude" / "skills" / "unpark-upkeep"
+    global_skill = (_home() / ".claude" / "skills" / "unpark-upkeep"
                     / "SKILL.md")
     local_skill = (found[0] / ".claude" / "skills" / "unpark-upkeep"
                    / "SKILL.md") if found else None
@@ -2966,7 +2975,7 @@ def render_docs_html(ctx: dict, token: "str | None" = None) -> str:
                         f"<code>{e(str(root))}/.claude/skills/"
                         "unpark-upkeep/</code>"
                         if root else "(requires a project)")
-        gl = Path.home() / ".claude" / "skills" / "unpark-upkeep"
+        gl = _home() / ".claude" / "skills" / "unpark-upkeep"
         disabled = "" if root else " disabled"
         b_local = " on" if ctx["local_installed"] else ""
         b_global = " on" if ctx["global_installed"] else ""
@@ -3125,7 +3134,7 @@ def serve_docs(start, timeout: float = 120.0, grace: float = 8.0,
             ctx = _docs_context(start)
             if self.path == "/api/skill/global":
                 rc = cmd_skill(ctx["root"] or ctx["cwd"], False, True)
-                wrote = [str(Path.home() / ".claude" / "skills"
+                wrote = [str(_home() / ".claude" / "skills"
                              / "unpark-upkeep" / "SKILL.md")]
             elif self.path == "/api/skill/local":
                 if not ctx["root"]:

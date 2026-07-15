@@ -25,7 +25,8 @@ from unpark import (
 from test_parser import SAMPLE
 from test_render_text import derived
 
-BG = SAMPLE.replace("python3 -m http.server 5173", "sleep 30")
+BG = SAMPLE.replace("python3 -m http.server 5173",
+                    'python -c "import time; time.sleep(30)"')
 
 
 class Fixture(unittest.TestCase):

@@ -25,7 +25,7 @@ name: fixture
 
 ```sh
 echo hello-from-the-log
-sleep 30
+python -c "import time; time.sleep(30)"
 ```
 """
 

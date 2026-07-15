@@ -26,7 +26,7 @@ echo hello >> out.txt
 - env: GREETING=hallo PORT=99
 
 ```sh
-printf '%s:%s\\n' "$GREETING" "$PORT" > env.txt
+python -c "import os,pathlib; pathlib.Path('env.txt').write_text(os.environ['GREETING'] + ':' + os.environ['PORT'] + '\\n')"
 ```
 
 ### dotty
@@ -34,7 +34,7 @@ printf '%s:%s\\n' "$GREETING" "$PORT" > env.txt
 - dotenv: .env
 
 ```sh
-printf '%s\\n' "$SECRET" > secret.txt
+python -c "import os,pathlib; pathlib.Path('secret.txt').write_text(os.environ['SECRET'] + '\\n')"
 ```
 
 ### demo
@@ -42,7 +42,7 @@ printf '%s\\n' "$SECRET" > secret.txt
 - background: true
 
 ```sh
-sleep 30
+python -c "import time; time.sleep(30)"
 ```
 """
 

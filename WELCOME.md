@@ -2,7 +2,7 @@
 name: unpark
 tagline: Un-park side projects with a re-entry briefing, recipes, and a local demo launcher
 status: active
-updated: 2026-07-15
+updated: 2026-07-16
 ---
 
 ## What is this
@@ -25,8 +25,8 @@ views over a human-readable `WELCOME.md`, live git facts, and managed recipes.
 - [x] Add Linux/macOS/Windows CI for Python 3.9–3.13
 - [x] Add structural briefing lint and strict validation
 - [x] Page long interactive terminal briefings through `$PAGER`
-- [x] Add the v0.2.0 Trusted Publishing workflow
-- [ ] Publish v0.2.0 on PyPI through Trusted Publishing
+- [x] Add the Trusted Publishing workflow
+- [ ] Publish v0.2.1 on PyPI through Trusted Publishing
 
 ## State of things
 
@@ -54,15 +54,20 @@ chosen registered project's briefing through `--pick` or `unpark project NAME`.
 The release workflow builds only version-matching `v*` tags and publishes the
 artifact through the configured PyPI Trusted Publisher and `pypi` Environment.
 
+The first public CI run exposed Windows-only assumptions in process tests and
+global-skill home resolution. The test fixtures now use Python instead of
+Unix-only commands; managed dashboard cleanup and command argument quoting
+also have Windows paths.
+
 Known issues:
-- The new CI matrix is configured but has not yet run on GitHub-hosted systems.
+- The initial public CI and PyPI run failed; the fixes need a new public commit
+  and release tag.
 - The dashboard/manual implementation remains the largest module and can be
   split further when a concrete maintenance need appears.
 - A dashboard screenshot remains optional release polish.
 
-Next step: export a fresh public repository with one initial commit, push
-`main`, create GitHub's `pypi` Environment, then push tag `v0.2.0` and let CI
-and PyPI publishing finish.
+Next step: commit these CI fixes in the public repository, wait for the matrix
+to pass, then publish the corrected release as `v0.2.1`.
 
 ## Recipes
 
@@ -95,5 +100,4 @@ uv run unpark demo
 ## Distribute
 
 Install a development checkout with `uv tool install .`. Version 0.2.0 is the
-first public GitHub release; PyPI publication follows the CI matrix and Trusted
-Publishing setup.
+first public GitHub release; version 0.2.1 is the first intended PyPI release.

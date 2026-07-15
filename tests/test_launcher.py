@@ -4,6 +4,8 @@ import os
 import queue
 import re
 import signal
+import subprocess
+import time
 import tempfile
 import threading
 import unittest
@@ -26,6 +28,16 @@ from test_parser import SAMPLE
 
 
 def kill_group(pid):
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
+                       capture_output=True)
+        for _ in range(20):
+            try:
+                os.kill(pid, 0)
+            except OSError:
+                return
+            time.sleep(0.05)
+        return
     try:
         os.killpg(pid, signal.SIGTERM)
     except (ProcessLookupError, PermissionError):

@@ -29,7 +29,7 @@ name: fixture
 
 ```sh
 echo started
-sleep 30
+python -c "import time; time.sleep(30)"
 ```
 
 ### fg-only

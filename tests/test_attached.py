@@ -35,7 +35,7 @@ name: fixture
 - background: true
 
 ```sh
-sleep 30
+python -c "import time; time.sleep(30)"
 ```
 """
 
