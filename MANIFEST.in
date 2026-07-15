@@ -1,0 +1,6 @@
+include AGENTS.md
+include SECURITY.md
+include WELCOME.md
+include docs/assets/README.md
+include tools/render_readme_assets.py
+recursive-include docs/assets *.png

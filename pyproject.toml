@@ -1,0 +1,35 @@
+[project]
+name = "unpark"
+version = "0.2.0"
+description = "Un-park your side projects with an instant re-entry briefing, runnable recipes, and a local demo launcher"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jörg Türmer" }]
+keywords = ["projects", "briefing", "re-entry", "dashboard", "task-runner", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/Tauris/unpark"
+Repository = "https://github.com/Tauris/unpark"
+Issues = "https://github.com/Tauris/unpark/issues"
+
+[project.scripts]
+unpark = "unpark.app:main"
+wb = "unpark.app:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
