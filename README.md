@@ -136,4 +136,4 @@ see [SECURITY.md](SECURITY.md) for details.
 
 ## Status and license
 
-Version 0.2.1 is the first PyPI release. MIT © Jörg Türmer (Joerg Tuermer).
+Published on PyPI. MIT © Jörg Türmer (Joerg Tuermer).

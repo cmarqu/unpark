@@ -1,6 +1,6 @@
 [project]
 name = "unpark"
-version = "0.2.1"
+version = "0.2.2"
 description = "Un-park your side projects with an instant re-entry briefing, runnable recipes, and a local demo launcher"
 readme = "README.md"
 requires-python = ">=3.9"

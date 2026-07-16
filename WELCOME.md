@@ -54,7 +54,7 @@ chosen registered project's briefing through `--pick` or `unpark project NAME`.
 The release workflow builds only version-matching `v*` tags and publishes the
 artifact through the configured PyPI Trusted Publisher and `pypi` Environment.
 
-Version 0.2.1 is published on PyPI through Trusted Publishing. Its full
+The package is published on PyPI through Trusted Publishing. Its full
 Linux/macOS/Windows matrix passes on Python 3.9–3.13; local dashboard and
 manual servers avoid the reverse-DNS lookup that stalled macOS runners.
 
