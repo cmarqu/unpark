@@ -192,8 +192,8 @@ class TestPortfolioCli(PortfolioFixture):
         rc, _, err = self.cli("project", "alpha")
         self.assertEqual(rc, 1)
         self.assertIn("multiple registered projects", err)
-        self.assertIn(str(self.hub / "alpha"), err)
-        self.assertIn(str(self.hub / "beta"), err)
+        self.assertIn(str((self.hub / "alpha").resolve()), err)
+        self.assertIn(str((self.hub / "beta").resolve()), err)
 
     def test_picker_selects_before_the_briefing(self):
         projects = gather_portfolio(self.hub)

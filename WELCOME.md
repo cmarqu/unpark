@@ -59,15 +59,19 @@ legacy text encodings, and non-canonical temporary paths. Generated files now
 use UTF-8, managed recipes track a stable wrapper on Windows, and workspace
 targets resolve to a single canonical path.
 
+The cross-platform repair is validated in a private staging matrix: Linux,
+macOS, and Windows all pass on Python 3.9–3.13. Local dashboard and manual
+servers now avoid an unnecessary reverse-DNS lookup that stalled macOS runners.
+
 Known issues:
-- The initial public CI and PyPI run failed; the repaired matrix needs a new
-  public commit and release tag.
+- The initial public CI and PyPI run failed; the squashed repair still needs a
+  public CI run and release tag.
 - The dashboard/manual implementation remains the largest module and can be
   split further when a concrete maintenance need appears.
 - A dashboard screenshot remains optional release polish.
 
-Next step: commit these CI fixes in the public repository, wait for the matrix
-to pass, then publish the corrected release as `v0.2.1`.
+Next step: push the squashed repair to public `main`, wait for its matrix to
+pass, then publish the corrected release as `v0.2.1`.
 
 ## Recipes
 

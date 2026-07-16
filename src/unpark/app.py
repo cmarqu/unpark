@@ -11,14 +11,18 @@ from __future__ import annotations
 import datetime as _dt
 import hashlib
 import html as _html
+import http.server
 import json
 import os
 import re
+import secrets
 import shlex
 import signal
+import socketserver
 import subprocess
 import sys
 import textwrap
+import threading
 import time
 from pathlib import Path
 
@@ -284,6 +288,11 @@ def _step_shell(command: str, cwd, env=None) -> int:
     sys.stdout.flush()
     sys.stderr.flush()
     if os.name == "nt":
+        # cmd.exe treats a newline in a command string as the end of the
+        # command passed through /c. Normalise a fenced multi-line block into
+        # an explicit chain so every line runs and errors stop the block.
+        command = " && ".join(
+            line.strip() for line in command.splitlines() if line.strip())
         p = subprocess.run(command, shell=True, cwd=str(cwd), env=env)
     else:
         p = subprocess.run(["/bin/sh", "-c", command], cwd=str(cwd), env=env)
@@ -352,7 +361,10 @@ def run_recipe(root, w: Welcome, name: str, _seen=None,
     if not cwd.is_dir():
         print(f"unpark: recipe '{name}' dir not found: {cwd}", file=sys.stderr)
         return 2
-    steps = list(r.steps)
+    # Fenced blocks conventionally end in a newline. Strip it before adding
+    # passthrough arguments: on cmd.exe an argument after that newline becomes
+    # a separate command rather than an argument to the recipe step.
+    steps = [step.strip() for step in r.steps]
     if extra_args:
         quoted = (subprocess.list2cmdline(extra_args)
                   if os.name == "nt"
@@ -898,11 +910,6 @@ def serve_dashboard(root, w: Welcome, timeout: float = 120.0,
 
     Returns True if the page was opened at least once.
     """
-    import http.server
-    import secrets
-    import socketserver
-    import threading
-
     token = secrets.token_urlsafe(16)
     lock = threading.Lock()
     state = {"opened": False, "last_seen": time.monotonic()}
@@ -1048,6 +1055,11 @@ def serve_dashboard(root, w: Welcome, timeout: float = 120.0,
     class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
         daemon_threads = True
         allow_reuse_address = True
+
+        def server_bind(self):
+            """Bind without reverse-DNS lookup of the loopback address."""
+            socketserver.TCPServer.server_bind(self)
+            self.server_name, self.server_port = self.server_address[:2]
 
     with Server(("127.0.0.1", 0), Handler) as srv:
         srv.timeout = 0.25  # poll so deadlines are honored
@@ -1214,7 +1226,9 @@ def start_recipe(root, w: Welcome, name: str, attached: bool = False) -> int:
     log = state_dir(root) / f"{name}.log"
     env = recipe_env(root, r)
     if os.name == "nt":
-        script = " && ".join(r.steps)
+        script = " && ".join(
+            line.strip() for step in r.steps
+            for line in step.splitlines() if line.strip())
         # Track a Python wrapper rather than cmd.exe. cmd.exe can exit before
         # the recipe child, leaving a pidfile for a shell that is already gone.
         argv = [sys.executable, "-c",
@@ -1308,6 +1322,13 @@ def _terminate(pid: int, attached: bool = False):
     if os.name == "nt":
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
                        capture_output=True)
+        # taskkill returns before Windows has necessarily released the
+        # child's working directory. Wait briefly so callers may safely
+        # remove a TemporaryDirectory immediately afterwards.
+        for _ in range(30):
+            if not pid_alive(pid):
+                break
+            time.sleep(0.05)
         _ATTACHED_PIDS.discard(int(pid))
         return
     def _signal_it(sig):
@@ -2175,7 +2196,13 @@ def _serve_page_once(page: str, timeout: float = 120.0, on_bound=None) -> bool:
         def log_message(self, *args):
             pass
 
-    with http.server.HTTPServer(("127.0.0.1", 0), Handler) as srv:
+    class Server(http.server.HTTPServer):
+        def server_bind(self):
+            """Bind without reverse-DNS lookup of the loopback address."""
+            socketserver.TCPServer.server_bind(self)
+            self.server_name, self.server_port = self.server_address[:2]
+
+    with Server(("127.0.0.1", 0), Handler) as srv:
         srv.timeout = 0.25
         url = f"http://127.0.0.1:{srv.server_address[1]}/"
         if on_bound:
@@ -3050,11 +3077,6 @@ def render_docs_html(ctx: dict, token: "str | None" = None) -> str:
 def serve_docs(start, timeout: float = 120.0, grace: float = 8.0,
                on_bound=None) -> bool:
     """Serve the manual like the dashboard: heartbeat-bound, token-guarded."""
-    import http.server
-    import secrets
-    import socketserver
-    import threading
-
     token = secrets.token_urlsafe(16)
     lock = threading.Lock()
     state = {"opened": False, "last_seen": time.monotonic()}
@@ -3196,6 +3218,11 @@ def serve_docs(start, timeout: float = 120.0, grace: float = 8.0,
 
     class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
         daemon_threads = True
+
+        def server_bind(self):
+            """Bind without reverse-DNS lookup of the loopback address."""
+            socketserver.TCPServer.server_bind(self)
+            self.server_name, self.server_port = self.server_address[:2]
 
     with Server(("127.0.0.1", 0), Handler) as srv:
         srv.timeout = 0.25

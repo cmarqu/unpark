@@ -26,6 +26,8 @@ class TestCtrlC(unittest.TestCase):
         self.assertEqual(rc, 130)
 
     def test_sigint_during_serve_exits_cleanly(self):
+        if os.name == "nt":
+            self.skipTest("Windows cannot deliver SIGINT to this child")
         with tempfile.TemporaryDirectory() as d, \
              tempfile.TemporaryDirectory() as state:
             (Path(d) / "WELCOME.md").write_text(SAMPLE)

@@ -6,6 +6,7 @@ import re
 import tempfile
 import threading
 import time
+import traceback
 import unittest
 import urllib.request
 from contextlib import redirect_stderr, redirect_stdout
@@ -82,12 +83,22 @@ class TestAttachedStart(Fixture):
 
     def test_api_start_accepts_attached_flag(self):
         urls = queue.Queue()
-        t = threading.Thread(target=lambda: serve_dashboard(
-            self.root, self.w, timeout=15.0, grace=1.0,
-            on_bound=urls.put), daemon=True)
+        errors = []
+
+        def serve():
+            try:
+                serve_dashboard(self.root, self.w, timeout=15.0, grace=1.0,
+                                on_bound=urls.put)
+            except BaseException:
+                errors.append(traceback.format_exc())
+                urls.put("")
+
+        t = threading.Thread(target=serve, daemon=True)
         with redirect_stdout(io.StringIO()):
             t.start()
             url = urls.get(timeout=5).rstrip("/")
+            if errors:
+                self.fail(errors[0])
             page = urllib.request.urlopen(url + "/", timeout=5).read().decode()
             tok = re.search(r'TOKEN\s*=\s*"([^"]+)"', page).group(1)
             req = urllib.request.Request(

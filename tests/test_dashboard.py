@@ -2,9 +2,11 @@ import io
 import json
 import os
 import queue
+import sys
 import tempfile
 import threading
 import time
+import traceback
 import unittest
 import urllib.error
 import urllib.request
@@ -42,13 +44,30 @@ class DashFixture(unittest.TestCase):
         self.result = {}
         self.thread = threading.Thread(target=self._serve, daemon=True)
         self.thread.start()
-        self.url = self.urls.get(timeout=5).rstrip("/")
+        try:
+            bound = self.urls.get(timeout=5)
+        except queue.Empty:
+            frame = sys._current_frames().get(self.thread.ident)
+            stack = "".join(traceback.format_stack(frame)) if frame else ""
+            self.fail("dashboard did not bind within 5 seconds: "
+                      f"state={self.result!r}, alive={self.thread.is_alive()}\n"
+                      f"server thread stack:\n{stack}")
+        if isinstance(bound, tuple):
+            self.fail(bound[1])
+        self.url = bound.rstrip("/")
 
     def _serve(self):
-        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-            self.result["opened"] = serve_dashboard(
-                self.root, self.w, timeout=15.0, grace=1.2,
-                on_bound=self.urls.put)
+        try:
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.result["opened"] = serve_dashboard(
+                    self.root, self.w, timeout=15.0, grace=1.2,
+                    on_bound=self._bound)
+        except BaseException:
+            self.urls.put(("error", traceback.format_exc()))
+
+    def _bound(self, url):
+        self.result["bound"] = url
+        self.urls.put(url)
 
     def tearDown(self):
         self.thread.join(timeout=10)

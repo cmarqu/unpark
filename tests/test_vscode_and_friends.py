@@ -38,18 +38,18 @@ class Fixture(unittest.TestCase):
 class TestVscodeTarget(Fixture):
     def test_folder_based_project(self):
         self.assertEqual(vscode_target(self.root, self.w),
-                         self.root)
+                         self.root.resolve())
 
     def test_workspace_file_in_root_is_detected(self):
         ws = self.root / "photo.code-workspace"
         ws.write_text("{}")
-        self.assertEqual(vscode_target(self.root, self.w), ws)
+        self.assertEqual(vscode_target(self.root, self.w), ws.resolve())
 
     def test_workspace_file_in_dot_vscode(self):
         (self.root / ".vscode").mkdir()
         ws = self.root / ".vscode" / "photo.code-workspace"
         ws.write_text("{}")
-        self.assertEqual(vscode_target(self.root, self.w), ws)
+        self.assertEqual(vscode_target(self.root, self.w), ws.resolve())
 
     def test_front_matter_workspace_wins(self):
         (self.root / "other.code-workspace").write_text("{}")
@@ -59,13 +59,13 @@ class TestVscodeTarget(Fixture):
         w = parse_welcome(SAMPLE.replace(
             "updated: 2026-06-02",
             "updated: 2026-06-02\nworkspace: docs/real.code-workspace"))
-        self.assertEqual(vscode_target(self.root, w), ws)
+        self.assertEqual(vscode_target(self.root, w), ws.resolve())
 
     def test_code_command(self):
         ws = self.root / "p.code-workspace"
         ws.write_text("{}")
         self.assertEqual(code_command(self.root, self.w),
-                         ["code", str(ws)])
+                         ["code", str(ws.resolve())])
 
 
 class TestProjectsCommand(Fixture):
