@@ -33,12 +33,14 @@ tool itself is local, deterministic, and makes no LLM or network calls.
 
 ## Try it without changing a project
 
-The package is currently pre-release. From a clone:
+Install the published package:
 
 ```sh
-uv tool install .
+uv tool install unpark        # or: pipx install unpark
 unpark demo
 ```
+
+From a clone, use `uv tool install .` when developing it.
 
 The demo is a self-contained, disposable trial: it prints a generated briefing
 with relative-dated git history, then deletes its files. Use `unpark demo
@@ -47,7 +49,7 @@ demo ./photo-globe-demo` to keep the sample for inspection.
 
 This is the dashboard opened by `unpark demo --html`:
 
-![The dashboard from unpark demo --html](https://raw.githubusercontent.com/Tauris/unpark/v0.2.0/docs/assets/wb-html.png)
+![The dashboard from unpark demo --html](https://raw.githubusercontent.com/Tauris/unpark/v0.2.1/docs/assets/wb-html.png)
 
 For daily use, run `unpark html` *inside a real project repository*. It reads
 that repository's own `WELCOME.md` and serves its local dashboard. From a
@@ -55,17 +57,11 @@ directory containing several real projects, the same command instead provides
 a compact portfolio with their status, stale-briefing warnings, goals, and next
 command:
 
-![A fifteen-project unpark HTML portfolio](https://raw.githubusercontent.com/Tauris/unpark/v0.2.0/docs/assets/projects-dashboard.png)
+![A fifteen-project unpark HTML portfolio](https://raw.githubusercontent.com/Tauris/unpark/v0.2.1/docs/assets/projects-dashboard.png)
 
 In a terminal, `unpark projects` pages your registered-project overview. Use
 `unpark projects --pick` to choose one before its briefing opens, or
 `unpark project NAME` when you already know which project you want.
-
-After the v0.2.0 PyPI publication:
-
-```sh
-uv tool install unpark        # or: pipx install unpark
-```
 
 ## Use it in a real project
 
@@ -140,4 +136,4 @@ see [SECURITY.md](SECURITY.md) for details.
 
 ## Status and license
 
-Version 0.2.0 is the first public release. MIT © Jörg Türmer (Joerg Tuermer).
+Version 0.2.1 is the first PyPI release. MIT © Jörg Türmer (Joerg Tuermer).
