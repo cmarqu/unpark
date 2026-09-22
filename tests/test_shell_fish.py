@@ -325,6 +325,9 @@ class TestFishHookEndToEnd(ShellFixture):
         self.assertNotIn("photo-globe", p.stderr)      # entry+same project:
         # silent (last_dir seeded on first call, then same root)
         self.assertEqual(p.stdout.strip(), "")         # prompt stays clean
+        # line breaks survive the fish round-trip: the section header is
+        # a line of its own, not space-joined into its neighbours
+        self.assertIn("WHAT IS THIS", p.stderr.splitlines())
 
     def test_failing_uv_reported_once_per_session(self):
         rc, _, _ = self.cli("shell", "fish", "--install")

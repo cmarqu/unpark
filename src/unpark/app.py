@@ -2477,7 +2477,7 @@ function __unpark_hook_error
     set -g __unpark_hook_error_shown 1
     printf "unpark cd-hook failed (file: %s):\n" (status filename) >&2
     if test (count $argv) -gt 0
-        printf "%s\n" $argv[1] >&2
+        printf "%s\n" $argv >&2
     end
 end
 
@@ -2496,15 +2496,19 @@ function __unpark_dir_change_hook
     end
     set -l output (uvx unpark cd-hook "$now" --from "$prev" 2>&1)
     if test $status -ne 0
-        __unpark_hook_error "$output"
+        __unpark_hook_error $output
         return
     end
-    # stderr goes straight to the terminal, while fish_prompt's stdout
-    # becomes the prompt — keep the briefing out of the prompt, or a
+    # $output is a list, one element per output line. Expanding it
+    # unquoted lets printf print each line intact (fish does not re-glob
+    # expansion results); quoting it as "$output" would join every line
+    # into one space-separated line and lose all line breaks. stderr
+    # goes straight to the terminal, while fish_prompt's stdout becomes
+    # the prompt — the briefing must stay out of the prompt, or a
     # multi-line "prompt" makes fish redraw (and visibly jump) it on
     # the first keystroke
-    if test -n "$output"
-        printf "%s\n" "$output" >&2
+    if test (count $output) -gt 0
+        printf "%s\n" $output >&2
     end
 end
 
