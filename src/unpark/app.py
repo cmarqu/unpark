@@ -2453,6 +2453,204 @@ def cmd_skill(root, install: bool, global_: bool = False,
     return 0
 
 
+# -------------------------------------------------- shell integrations
+
+_SHELL_TARGETS = ("fish",)
+
+_FISH_MARKER_START = "# >>> unpark:cd-hook:start (managed by `unpark shell fish`) >>>"
+_FISH_MARKER_END = "# <<< unpark:cd-hook:end <<<"
+
+# Runs on every directory change in an interactive fish shell. fish has
+# no chpwd hook, so the block wraps fish_prompt once — the same trick
+# `direnv fish` uses: copy the existing prompt, call ours first, then the
+# original. The heavy lifting (project lookup, briefing) stays in Python
+# via `unpark cd-hook`, so the WELCOME.md location rules live in one place.
+_FISH_HOOK_BODY = """\
+function __unpark_dir_change_hook
+    set -q __unpark_last_dir
+    or set -g __unpark_last_dir (pwd)
+    set -l now (pwd)
+    if test "$__unpark_last_dir" = "$now"
+        return
+    end
+    set -l prev $__unpark_last_dir
+    set -g __unpark_last_dir "$now"
+    if command -q unpark
+        command unpark cd-hook "$now" --from "$prev"
+    end
+end
+
+set -l __unpark_wrapped 0
+if functions -q fish_prompt
+    if string match -q "*__unpark_orig_fish_prompt*" (functions fish_prompt)
+        set __unpark_wrapped 1
+    end
+end
+if test $__unpark_wrapped -eq 0
+    if functions -q fish_prompt
+        functions -c fish_prompt __unpark_orig_fish_prompt
+    end
+    function fish_prompt
+        __unpark_dir_change_hook
+        if functions -q __unpark_orig_fish_prompt
+            __unpark_orig_fish_prompt
+        end
+    end
+end
+"""
+
+
+def _fish_version() -> str:
+    """Content hash of the hook: installed copies carry it, so a newer
+    `unpark shell fish --install` upgrades the block in place."""
+    return hashlib.sha1(_FISH_HOOK_BODY.encode()).hexdigest()[:8]
+
+
+def _fish_block() -> str:
+    return (f"{_FISH_MARKER_START}\n"
+            f"# unpark-shell-version: {_fish_version()}\n"
+            f"# Runs the unpark briefing when you change into a project\n"
+            f"# directory, and offers `unpark init` in a repo without one.\n"
+            f"# Remove with: unpark shell fish --uninstall\n"
+            f"\n{_FISH_HOOK_BODY}\n"
+            f"{_FISH_MARKER_END}\n")
+
+
+def shell_config_path(target: str) -> Path:
+    """Where target's shell hook lives: a conf.d file the shell sources
+    on every interactive start, so user config files stay untouched."""
+    if target != "fish":
+        raise ValueError(f"unknown shell target: {target}")
+    base = _env("CONFIG_DIR")
+    if base:
+        base = Path(base)
+    elif os.name == "nt":
+        base = Path(os.environ.get("APPDATA", _home()))
+    else:
+        base = Path(os.environ.get("XDG_CONFIG_HOME",
+                                   _home() / ".config"))
+    return base / "fish" / "conf.d" / "unpark.fish"
+
+
+def _upsert_shell_block(path, marker_start: str, marker_end: str, block: str,
+                         remove: bool = False) -> bool:
+    """Add or replace only unpark's marked block in a shell config file.
+
+    Returns True when the file changed (or was removed). On removal a
+    file left without meaningful content is deleted (conf.d hygiene).
+    """
+    path = Path(path)
+    if remove:
+        if not path.exists():
+            return False
+        text = path.read_text()
+        if marker_start not in text or marker_end not in text:
+            return False
+        head, _, rest = text.partition(marker_start)
+        _, _, tail = rest.partition(marker_end)
+        kept = re.sub(r"\n{3,}", "\n\n", head + tail).strip("\n")
+        if kept.strip():
+            path.write_text(kept + "\n")
+        else:
+            path.unlink()
+        return True
+    if path.exists():
+        text = path.read_text()
+        if marker_start in text and marker_end in text:
+            head, _, rest = text.partition(marker_start)
+            _, _, tail = rest.partition(marker_end)
+            text = head + block.rstrip("\n") + tail
+        else:
+            text = text.rstrip("\n") + "\n\n" + block.rstrip("\n")
+    else:
+        text = block.rstrip("\n")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text if text.endswith("\n") else text + "\n")
+    return True
+
+
+def cmd_shell(target: str, install: bool = False,
+              uninstall: bool = False) -> int:
+    """Print, install or remove the shell directory-change hook."""
+    if target not in _SHELL_TARGETS:
+        print(f"unpark: unknown shell target: {target} "
+              f"(known: {', '.join(_SHELL_TARGETS)})", file=sys.stderr)
+        return 1
+    if install and uninstall:
+        print("unpark: --install and --uninstall are mutually exclusive",
+              file=sys.stderr)
+        return 1
+    if not install and not uninstall:
+        print(_fish_block())
+        return 0
+    path = shell_config_path(target)
+    if uninstall:
+        if _upsert_shell_block(path, _FISH_MARKER_START, _FISH_MARKER_END,
+                               "", remove=True):
+            print(f"removed directory-change hook: {path}")
+        else:
+            print("no unpark shell hook installed")
+        return 0
+    _upsert_shell_block(path, _FISH_MARKER_START, _FISH_MARKER_END,
+                        _fish_block())
+    print(f"installed fish directory-change hook: {path}")
+    print("new fish shells now run the briefing when you change into a "
+          "project, and offer `unpark init` in repos without one")
+    return 0
+
+
+def _inside_git_repo(directory) -> "Path | None":
+    """Git toplevel containing directory, by stat-walk, or None.
+
+    No subprocess — this runs on the hot path of every directory
+    change. A `.git` *file* marks a worktree or submodule; both count
+    as repos.
+    """
+    try:
+        p = Path(directory).resolve()
+    except OSError:
+        return None
+    for candidate in [p, *p.parents]:
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
+def cmd_cd_hook(directory, from_dir=None) -> int:
+    """What the installed shell hook runs on a directory change.
+
+    Entering a project prints its terminal briefing; entering a git
+    repo without one offers `unpark init` (with `UNPARK_CD_AUTO_INIT=1`
+    in the environment, the template is created at the repo root
+    instead). Moving within the same project or repo stays silent.
+    Never fails — a prompt must survive anything.
+    """
+    to_project = find_project(directory)
+    if to_project is not None:
+        from_project = (find_project(from_dir) if from_dir else None)
+        if from_project is not None and from_project[0] == to_project[0]:
+            return 0  # moving inside the project we already briefed
+        root, welcome_file = to_project
+        w = _load(welcome_file)
+        if Path(directory).resolve() != root:
+            print(f"project: {w.meta.get('name', root.name)} — {root}")
+        display_text(render_text(w, _derived(root, w),
+                                 _use_color(False)))
+        return 0
+    to_repo = _inside_git_repo(directory)
+    if to_repo is None:
+        return 0
+    from_repo = (_inside_git_repo(from_dir) if from_dir else None)
+    if from_repo is not None and from_repo == to_repo:
+        return 0  # moving inside the same repo: one hint is enough
+    if _env("CD_AUTO_INIT") == "1":
+        return cmd_init(to_repo)
+    print("no unpark briefing in this repo — `unpark init` creates one "
+          "(set UNPARK_CD_AUTO_INIT=1 to do that automatically)",
+          file=sys.stderr)
+    return 0
+
+
 # ---------------------------------------------------------- the manual
 
 _DOCS = [
@@ -2506,6 +2704,8 @@ needs one.
   into the repo root); use that route when history matters — unpark
   detects the resulting file either way
 - `unpark skill [--install] [--global]` — LLM upkeep instructions
+- `unpark shell fish [--install | --uninstall]` — the fish
+  directory-change hook (see *Directory change hook (fish))*
 - `unpark manual` — this manual · `unpark help` — terminal help
 - Global flags: `-C DIR` (project directory), `--file PATH`,
   `--no-color`, `--no-pager`, `--version`. Terminal briefings page through
@@ -2698,10 +2898,47 @@ It does NOT fire on a timer or a git hook — nothing happens while no
 agent is working. If a project drifts while you edit by hand, the
 staleness warning is what tells you.
 """),
+    ("Directory change hook (fish)", """
+`unpark shell fish --install` adds a managed block to
+`~/.config/fish/conf.d/unpark.fish` (Windows:
+`%APPDATA%\\fish\\conf.d\\unpark.fish`). From then on, changing into a
+project directory runs the terminal briefing itself — direnv-style
+re-entry, no muscle memory needed. New shells only: an already running
+shell keeps the old prompt until you start a new one.
+
+What happens on a directory change:
+
+- *into a project* (a WELCOME.md found while walking up): the
+  terminal briefing prints. Moving *within* the same project stays
+  silent; leaving and coming back briefs again.
+- *into a git repo without a briefing*: one line offering
+  `unpark init`. With `UNPARK_CD_AUTO_INIT=1` in the environment the
+  template is created at the repo root automatically instead — opt-in
+  on purpose, so a stray `cd` into a fresh clone never writes files.
+- *anywhere else*: nothing happens, and the hook never changes the
+  exit status of your prompt.
+
+Mechanics: fish has no directory-change hook, so the block wraps
+`fish_prompt` exactly once (the same trick `direnv fish` uses): your
+existing prompt is copied and called as before, with the hook in
+front. The project lookup runs in Python
+(`unpark cd-hook DIR --from PREV`), so the WELCOME.md location rules
+stay in one place. `unpark shell fish` without flags prints the
+generated script; `--uninstall` removes the block and keeps anything
+you added to the file by hand.
+
+bash and zsh have native `chpwd`/`PROMPT_COMMAND` hooks and are next.
+Running `unpark` on *git branch* changes (also requested in issue #1)
+would be a git `post-checkout` hook rather than a shell hook — a
+follow-up.
+"""),
     ("Environment variables", """
 - `UNPARK_FILE` — explicit briefing path (like `--file`)
 - `UNPARK_STATE_DIR` — where pidfiles/logs live (default:
   `~/.local/state/unpark`, per-project subdirectories)
+- `UNPARK_CD_AUTO_INIT` — set to `1`: the fish directory-change hook
+  creates a WELCOME.md template automatically in a git repo without
+  one, instead of only offering `unpark init`
 - `NO_COLOR` — disable ANSI colors
 - `BROWSER` — force a specific browser (otherwise WSL hands URLs to
   Windows automatically)
@@ -2719,6 +2956,7 @@ _DOCS_META = {
     "The HTML dashboard": ("▦", "dashboard"),
     "Portfolio": ("▤", "portfolio"),
     "Keeping it fresh (LLM upkeep)": ("✎", "llm upkeep"),
+    "Directory change hook (fish)": ("↪", "cd hook"),
     "Environment variables": ("$", "env vars"),
 }
 
@@ -3370,6 +3608,9 @@ def _main(argv=None) -> int:
                               LLM upkeep skill for ALL projects on this
                               machine (use --target claude|codex|copilot|all;
                               default: claude; repo untouched)
+  unpark shell fish --install
+                              fish hook: the briefing runs itself when
+                              you change into a project directory
   unpark register             add this project to your portfolio
   unpark projects             page registered projects
   unpark projects --pick      choose one before opening its briefing
@@ -3464,6 +3705,23 @@ The optional `wb` shorthand means “welcome back”. The dashboard
                    choices=(*_GLOBAL_SKILL_TARGETS, "all"),
                    help="global integration to install (repeatable): "
                         "claude, codex, copilot, or all; default: claude")
+    p = sub.add_parser("shell", help="shell integration: print, install "
+                       "or remove the directory-change hook")
+    p.add_argument("target", choices=_SHELL_TARGETS,
+                   help="shell to integrate (only fish for now)")
+    shell_scope = p.add_mutually_exclusive_group()
+    shell_scope.add_argument("--install", action="store_true",
+                             help="write the hook into the shell's conf.d "
+                                  "(fish: ~/.config/fish/conf.d/unpark.fish)")
+    shell_scope.add_argument("--uninstall", action="store_true",
+                             help="remove the hook again")
+    p = sub.add_parser("cd-hook", help="internal: what the installed shell "
+                       "hook runs when you change into DIR (fine to call "
+                       "by hand)")
+    p.add_argument("directory", help="directory the shell changed into")
+    p.add_argument("--from", dest="from_dir",
+                   help="previous directory — moving within one project "
+                        "or repo stays silent")
 
     args = ap.parse_args(argv)
 
@@ -3552,6 +3810,11 @@ The optional `wb` shorthand means “welcome back”. The dashboard
         if args.no_open and not args.html:
             ap.error("demo --no-open requires --html")
         return cmd_demo(args.destination, args.html, args.no_open)
+    # user-level and hook commands: valid from anywhere, no project needed
+    if args.cmd == "shell":
+        return cmd_shell(args.target, args.install, args.uninstall)
+    if args.cmd == "cd-hook":
+        return cmd_cd_hook(args.directory, args.from_dir)
 
     explicit = args.welcome_file or _env("FILE")
     if explicit:

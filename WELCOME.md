@@ -2,7 +2,7 @@
 name: unpark
 tagline: Un-park side projects with a re-entry briefing, recipes, and a local demo launcher
 status: active
-updated: 2026-07-16
+updated: 2026-09-22
 ---
 
 ## What is this
@@ -27,8 +27,23 @@ views over a human-readable `WELCOME.md`, live git facts, and managed recipes.
 - [x] Page long interactive terminal briefings through `$PAGER`
 - [x] Add the Trusted Publishing workflow
 - [ ] Publish v0.2.1 on PyPI through Trusted Publishing
+- [x] Add the fish directory-change hook (`unpark shell fish`)
 
 ## State of things
+
+The fish directory-change hook answers issue #1. `unpark shell fish
+--install` writes a managed, version-stamped block to
+`~/.config/fish/conf.d/unpark.fish` that wraps `fish_prompt` once (the
+direnv pattern) and runs `unpark cd-hook DIR --from PREV` on every
+directory change.
+
+Entering a project prints its terminal briefing; entering a git repo
+without one offers `unpark init`, or creates the template at the repo
+root with `UNPARK_CD_AUTO_INIT=1`. Moving within one project or repo
+stays silent, and the hook never fails a prompt.
+
+`unpark shell fish` prints the generated script; `--uninstall` removes
+the block again, keeping hand-added lines.
 
 The public-release hardening pass is complete: the package, commands, skill,
 state/config paths, documentation, and tests now use `unpark`. The sole
@@ -62,9 +77,12 @@ Known issues:
 - The dashboard/manual implementation remains the largest module and can be
   split further when a concrete maintenance need appears.
 - A dashboard screenshot remains optional release polish.
+- bash/zsh hooks and the git branch-change trigger (also from issue #1) are
+  still open; `~/.config/unparkrc` root directories remain a possible
+  refinement of the auto-init scope.
 
-Next step: install `unpark` from PyPI in a fresh environment and use it on a
-real project.
+Next step: cut the release with the fish hook, then port the hook to bash
+and zsh through their native `chpwd`/`PROMPT_COMMAND` hooks.
 
 ## Recipes
 
