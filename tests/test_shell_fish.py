@@ -101,7 +101,11 @@ class TestShellFishInstall(ShellFixture):
         rcfile = Path(self.home.name) / ".config" / "unparkrc"
         self.assertTrue(rcfile.exists())
         text = rcfile.read_text()
-        self.assertIn("https://github.com/Tauris/unpark", text)
+        # the source URL is part of the comment section
+        self.assertIn("# Source: https://github.com/Tauris/unpark", text)
+        for line in text.splitlines():
+            if "https://github.com" in line:
+                self.assertTrue(line.lstrip().startswith("#"))
         self.assertIn("created", out)
         self.assertIn(str(rcfile), out)
 

@@ -2549,18 +2549,17 @@ def shell_config_path(target: str) -> Path:
 
 
 # Starter content for a missing ~/.config/unparkrc, created by
-# `unpark shell fish --install`: a dummy entry list that shows the
-# format and points at the unpark repository itself as an example
-# project root.
+# `unpark shell fish --install`: a fully commented dummy that shows
+# the entry format and self-documents its source.
 _UNPARKRC_DUMMY = """\
 # unparkrc — user config for unpark's shell hooks
 #
 # Created by `unpark shell fish --install` as a starting point; edit
 # freely, unpark never rewrites an existing file. One entry per line;
 # lines starting with '#' are comments. Entries name project roots —
-# local directories, or repository URLs that contain your projects:
+# local directories, or repository URLs that contain your projects.
 #
-https://github.com/Tauris/unpark
+# Source: https://github.com/Tauris/unpark
 """
 
 
@@ -2978,8 +2977,8 @@ shell session; `uv tool upgrade unpark` refreshes a stale cache.
 `unpark shell fish` without flags prints the generated script;
 `--uninstall` removes the block and keeps anything you added to the
 file by hand. The install also creates a dummy `~/.config/unparkrc`
-(a starter entry list that shows the format and points at
-`https://github.com/Tauris/unpark` as an example project root)
+(a fully commented starter that shows the entry format and
+self-documents its source, `https://github.com/Tauris/unpark`)
 unless one already exists — an existing file is never touched, and
 uninstall never removes it.
 
