@@ -65,6 +65,9 @@ class TestShellFishPrint(ShellFixture):
         self.assertIn("__unpark_hook_error_shown", out)
         self.assertFalse((Path(self.home.name) / ".config" / "fish")
                          .exists())
+        # printing alone must not create the dummy config
+        self.assertFalse((Path(self.home.name) / ".config" / "unparkrc")
+                         .exists())
 
     def test_printed_script_is_stable_and_versioned(self):
         _, out1, _ = self.cli("shell", "fish")
@@ -91,6 +94,32 @@ class TestShellFishInstall(ShellFixture):
         self.assertIn(_FISH_MARKER_START, text)
         self.assertIn(f"unpark-shell-version: {_fish_version()}", text)
         self.assertIn(str(f), out)
+
+    def test_install_creates_dummy_unparkrc(self):
+        rc, out, _ = self.cli("shell", "fish", "--install")
+        self.assertEqual(rc, 0)
+        rcfile = Path(self.home.name) / ".config" / "unparkrc"
+        self.assertTrue(rcfile.exists())
+        text = rcfile.read_text()
+        self.assertIn("https://github.com/Tauris/unpark", text)
+        self.assertIn("created", out)
+        self.assertIn(str(rcfile), out)
+
+    def test_install_keeps_existing_unparkrc(self):
+        rcfile = Path(self.home.name) / ".config" / "unparkrc"
+        rcfile.parent.mkdir(parents=True)
+        rcfile.write_text("# mine\n~/projects\n")
+        rc, out, _ = self.cli("shell", "fish", "--install")
+        self.assertEqual(rc, 0)
+        self.assertEqual(rcfile.read_text(), "# mine\n~/projects\n")
+        self.assertNotIn("created", out)
+
+    def test_uninstall_keeps_unparkrc(self):
+        self.cli("shell", "fish", "--install")
+        rc, _, _ = self.cli("shell", "fish", "--uninstall")
+        self.assertEqual(rc, 0)
+        self.assertTrue((Path(self.home.name) / ".config" / "unparkrc")
+                        .exists())
 
     def test_install_is_idempotent(self):
         self.cli("shell", "fish", "--install")
@@ -143,6 +172,7 @@ class TestShellFishInstall(ShellFixture):
                 self.assertEqual(rc, 0)
                 self.assertTrue((Path(xdg) / "fish" / "conf.d" /
                                  "unpark.fish").exists())
+                self.assertTrue((Path(xdg) / "unparkrc").exists())
             finally:
                 del os.environ["XDG_CONFIG_HOME"]
 

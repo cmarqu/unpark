@@ -1767,17 +1767,19 @@ def open_vscode(project_root) -> "dict | None":
 # ------------------------------------------------------ project registry
 
 
-def registry_file() -> Path:
-    """User-level list of registered projects (portfolio from anywhere)."""
+def _config_base() -> Path:
+    """User config base directory for unpark files."""
     base = _env("CONFIG_DIR")
     if base:
-        base = Path(base)
-    elif os.name == "nt":
-        base = Path(os.environ.get("APPDATA", _home())) / "unpark"
-    else:
-        base = Path(os.environ.get("XDG_CONFIG_HOME",
-                                   _home() / ".config")) / "unpark"
-    return base / "projects.json"
+        return Path(base)
+    if os.name == "nt":
+        return Path(os.environ.get("APPDATA", _home()))
+    return Path(os.environ.get("XDG_CONFIG_HOME", _home() / ".config"))
+
+
+def registry_file() -> Path:
+    """User-level list of registered projects (portfolio from anywhere)."""
+    return _config_base() / "unpark" / "projects.json"
 
 
 def registry_load() -> list:
@@ -2543,15 +2545,28 @@ def shell_config_path(target: str) -> Path:
     on every interactive start, so user config files stay untouched."""
     if target != "fish":
         raise ValueError(f"unknown shell target: {target}")
-    base = _env("CONFIG_DIR")
-    if base:
-        base = Path(base)
-    elif os.name == "nt":
-        base = Path(os.environ.get("APPDATA", _home()))
-    else:
-        base = Path(os.environ.get("XDG_CONFIG_HOME",
-                                   _home() / ".config"))
-    return base / "fish" / "conf.d" / "unpark.fish"
+    return _config_base() / "fish" / "conf.d" / "unpark.fish"
+
+
+# Starter content for a missing ~/.config/unparkrc, created by
+# `unpark shell fish --install`: a dummy entry list that shows the
+# format and points at the unpark repository itself as an example
+# project root.
+_UNPARKRC_DUMMY = """\
+# unparkrc — user config for unpark's shell hooks
+#
+# Created by `unpark shell fish --install` as a starting point; edit
+# freely, unpark never rewrites an existing file. One entry per line;
+# lines starting with '#' are comments. Entries name project roots —
+# local directories, or repository URLs that contain your projects:
+#
+https://github.com/Tauris/unpark
+"""
+
+
+def unparkrc_path() -> Path:
+    """User config for the shell hooks (roots the cd-hook cares about)."""
+    return _config_base() / "unparkrc"
 
 
 def _upsert_shell_block(path, marker_start: str, marker_end: str, block: str,
@@ -2616,6 +2631,12 @@ def cmd_shell(target: str, install: bool = False,
     _upsert_shell_block(path, _FISH_MARKER_START, _FISH_MARKER_END,
                         _fish_block())
     print(f"installed fish directory-change hook: {path}")
+    rc_file = unparkrc_path()
+    if not rc_file.exists():
+        rc_file.parent.mkdir(parents=True, exist_ok=True)
+        rc_file.write_text(_UNPARKRC_DUMMY)
+        print(f"created {rc_file} — dummy config; edit its entry list "
+              "to your project roots")
     print("new fish shells now run the briefing via `uvx unpark` "
           "(cached by uv) when you change into a project, and offer "
           "`unpark init` in repos without one; a failing command is "
@@ -2956,7 +2977,11 @@ prints the conf.d file it came from and the error message — once per
 shell session; `uv tool upgrade unpark` refreshes a stale cache.
 `unpark shell fish` without flags prints the generated script;
 `--uninstall` removes the block and keeps anything you added to the
-file by hand.
+file by hand. The install also creates a dummy `~/.config/unparkrc`
+(a starter entry list that shows the format and points at
+`https://github.com/Tauris/unpark` as an example project root)
+unless one already exists — an existing file is never touched, and
+uninstall never removes it.
 
 bash and zsh have native `chpwd`/`PROMPT_COMMAND` hooks and are next.
 Running `unpark` on *git branch* changes (also requested in issue #1)

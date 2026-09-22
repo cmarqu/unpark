@@ -139,7 +139,10 @@ command fails, the hook prints the file it came from and the error message,
 once per shell session. The managed block lives in
 `~/.config/fish/conf.d/unpark.fish` and never touches your own config
 files: `unpark shell fish` prints the generated script, and
-`unpark shell fish --uninstall` removes it again.
+`unpark shell fish --uninstall` removes it again. The install also
+creates a dummy `~/.config/unparkrc` (a starter entry list that
+points at `https://github.com/Tauris/unpark` as an example) unless
+one already exists.
 
 ## Plays well with task runners
 
