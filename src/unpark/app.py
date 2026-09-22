@@ -2634,8 +2634,11 @@ def cmd_shell(target: str, install: bool = False,
     if not rc_file.exists():
         rc_file.parent.mkdir(parents=True, exist_ok=True)
         rc_file.write_text(_UNPARKRC_DUMMY)
-        print(f"created {rc_file} — dummy config; edit its entry list "
-              "to your project roots")
+        print(f"created {rc_file} — dummy user config; edit its entry "
+              "list to your project roots")
+    else:
+        print(f"user config: {rc_file} (existing file kept; edit its "
+              "entry list to your project roots)")
     print("new fish shells now run the briefing via `uvx unpark` "
           "(cached by uv) when you change into a project, and offer "
           "`unpark init` in repos without one; a failing command is "

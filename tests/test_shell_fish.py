@@ -117,6 +117,8 @@ class TestShellFishInstall(ShellFixture):
         self.assertEqual(rc, 0)
         self.assertEqual(rcfile.read_text(), "# mine\n~/projects\n")
         self.assertNotIn("created", out)
+        # an existing file is still named in the install output
+        self.assertIn(str(rcfile), out)
 
     def test_uninstall_keeps_unparkrc(self):
         self.cli("shell", "fish", "--install")
