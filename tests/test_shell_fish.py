@@ -319,9 +319,12 @@ class TestFishHookEndToEnd(ShellFixture):
             __unpark_dir_change_hook
         """)
         self.assertEqual(p.returncode, 0, p.stderr)
-        self.assertIn("the other project", p.stdout)  # switch → briefing
-        self.assertNotIn("photo-globe", p.stdout)     # entry+same project:
+        # the briefing is written to the terminal (stderr), never into
+        # the prompt (stdout of fish_prompt)
+        self.assertIn("the other project", p.stderr)   # switch → briefing
+        self.assertNotIn("photo-globe", p.stderr)      # entry+same project:
         # silent (last_dir seeded on first call, then same root)
+        self.assertEqual(p.stdout.strip(), "")         # prompt stays clean
 
     def test_failing_uv_reported_once_per_session(self):
         rc, _, _ = self.cli("shell", "fish", "--install")

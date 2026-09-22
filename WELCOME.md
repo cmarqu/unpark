@@ -42,7 +42,9 @@ file and error, once per session.
 Entering a project prints its terminal briefing; entering a git repo
 without one offers `unpark init`, or creates the template at the repo
 root with `UNPARK_CD_AUTO_INIT=1`. Moving within one project or repo
-stays silent, and the hook never fails a prompt. The install also
+stays silent, the hook never fails a prompt, and the briefing is
+written to the terminal (stderr) rather than into the prompt, so the
+prompt line is never disturbed. The install also
 creates a dummy `~/.config/unparkrc` (a fully commented starter that
 explains the entry format — roots whose subdirectories are the
 projects — and self-documents its source) unless one exists.

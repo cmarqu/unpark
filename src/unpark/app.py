@@ -2499,8 +2499,12 @@ function __unpark_dir_change_hook
         __unpark_hook_error "$output"
         return
     end
+    # stderr goes straight to the terminal, while fish_prompt's stdout
+    # becomes the prompt — keep the briefing out of the prompt, or a
+    # multi-line "prompt" makes fish redraw (and visibly jump) it on
+    # the first keystroke
     if test -n "$output"
-        printf "%s\n" "$output"
+        printf "%s\n" "$output" >&2
     end
 end
 
@@ -2965,8 +2969,11 @@ shell keeps the old prompt until you start a new one.
 What happens on a directory change:
 
 - *into a project* (a WELCOME.md found while walking up): the
-  terminal briefing prints. Moving *within* the same project stays
-  silent; leaving and coming back briefs again.
+  terminal briefing is written to the terminal, just above your
+  prompt — and never into the prompt itself, because a multi-line
+  prompt makes fish redraw (and visibly jump) it on the first
+  keystroke. Moving *within* the same project stays silent; leaving
+  and coming back briefs again.
 - *into a git repo without a briefing*: one line offering
   `unpark init`. With `UNPARK_CD_AUTO_INIT=1` in the environment the
   template is created at the repo root automatically instead — opt-in
@@ -2985,6 +2992,9 @@ location rules live in one place. If the command fails (uv missing,
 no network, a cached unpark too old to know `cd-hook`), the hook
 prints the conf.d file it came from and the error message — once per
 shell session; `uv tool upgrade unpark` refreshes a stale cache.
+The briefing itself is printed on the shell's stderr: fish treats
+`fish_prompt`'s stdout as the prompt text, and everything else goes
+straight to the terminal.
 `unpark shell fish` without flags prints the generated script;
 `--uninstall` removes the block and keeps anything you added to the
 file by hand. The install also creates a dummy `~/.config/unparkrc`

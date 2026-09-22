@@ -130,7 +130,8 @@ unpark shell fish --install
 ```
 
 Every time you change into a project directory, the terminal briefing runs
-automatically. In a git repo without a briefing you get a one-liner offering
+automatically and is written directly to the terminal — it never becomes
+part of your prompt line, so the prompt stays undisturbed. In a git repo without a briefing you get a one-liner offering
 `unpark init`; with `UNPARK_CD_AUTO_INIT=1` in your environment the template
 is created at the repo root automatically. Moving within one project stays
 silent, and the hook never fails your prompt. The hook runs unpark through
