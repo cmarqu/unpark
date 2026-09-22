@@ -106,6 +106,9 @@ class TestShellFishInstall(ShellFixture):
         for line in text.splitlines():
             if "https://github.com" in line:
                 self.assertTrue(line.lstrip().startswith("#"))
+        # the format is spelled out: roots hold project subdirectories
+        self.assertIn("subdirectories", text)
+        self.assertIn("ROOTS", text)
         self.assertIn("created", out)
         self.assertIn(str(rcfile), out)
 

@@ -2556,8 +2556,16 @@ _UNPARKRC_DUMMY = """\
 #
 # Created by `unpark shell fish --install` as a starting point; edit
 # freely, unpark never rewrites an existing file. One entry per line;
-# lines starting with '#' are comments. Entries name project roots —
-# local directories, or repository URLs that contain your projects.
+# lines starting with '#' are comments.
+#
+# Entries are ROOTS — local directories, or repository URLs — that
+# themselves hold subdirectories, and it is those subdirectories
+# that carry the unpark files (WELCOME.md). The root is not a
+# project itself:
+#
+#   ~/projects                        <- an entry listed in this file
+#   ~/projects/photo-globe/WELCOME.md <- a project below the root
+#   ~/projects/globe-api/WELCOME.md
 #
 # Source: https://github.com/Tauris/unpark
 """
@@ -2980,10 +2988,11 @@ shell session; `uv tool upgrade unpark` refreshes a stale cache.
 `unpark shell fish` without flags prints the generated script;
 `--uninstall` removes the block and keeps anything you added to the
 file by hand. The install also creates a dummy `~/.config/unparkrc`
-(a fully commented starter that shows the entry format and
-self-documents its source, `https://github.com/Tauris/unpark`)
-unless one already exists — an existing file is never touched, and
-uninstall never removes it.
+(a fully commented starter that explains the entry format — entries
+are roots whose *subdirectories* are the projects with the unpark
+files — and self-documents its source,
+`https://github.com/Tauris/unpark`) unless one already exists — an
+existing file is never touched, and uninstall never removes it.
 
 bash and zsh have native `chpwd`/`PROMPT_COMMAND` hooks and are next.
 Running `unpark` on *git branch* changes (also requested in issue #1)

@@ -140,8 +140,9 @@ once per shell session. The managed block lives in
 `~/.config/fish/conf.d/unpark.fish` and never touches your own config
 files: `unpark shell fish` prints the generated script, and
 `unpark shell fish --uninstall` removes it again. The install also
-creates a dummy `~/.config/unparkrc` (a fully commented starter that
-shows the entry format and self-documents its source,
+creates a dummy `~/.config/unparkrc` (a fully commented starter:
+entries are roots, and the projects with their unpark files live in
+the roots' subdirectories; it self-documents its source,
 `https://github.com/Tauris/unpark`) unless one already exists.
 
 ## Plays well with task runners

@@ -44,7 +44,8 @@ without one offers `unpark init`, or creates the template at the repo
 root with `UNPARK_CD_AUTO_INIT=1`. Moving within one project or repo
 stays silent, and the hook never fails a prompt. The install also
 creates a dummy `~/.config/unparkrc` (a fully commented starter that
-self-documents its source) unless one exists.
+explains the entry format — roots whose subdirectories are the
+projects — and self-documents its source) unless one exists.
 
 `unpark shell fish` prints the generated script; `--uninstall` removes
 the block again, keeping hand-added lines.
