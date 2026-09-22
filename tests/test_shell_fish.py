@@ -61,7 +61,8 @@ class TestShellFishPrint(ShellFixture):
         self.assertIn(_FISH_MARKER_START, out)
         self.assertIn("__unpark_dir_change_hook", out)
         self.assertIn("functions -c fish_prompt", out)
-        self.assertIn("unpark cd-hook", out)
+        self.assertIn("uvx unpark cd-hook", out)
+        self.assertIn("__unpark_hook_error_shown", out)
         self.assertFalse((Path(self.home.name) / ".config" / "fish")
                          .exists())
 
@@ -228,12 +229,18 @@ class TestCdHook(ShellFixture):
 
 @unittest.skipUnless(FISH, "fish not installed")
 class TestFishHookEndToEnd(ShellFixture):
-    def fish_run(self, script):
-        """Run a fish one-liner with the installed hook and a real unpark."""
+    def fish_run(self, script, uvx_shim=None):
+        """Run a fish one-liner with the installed hook. The hook calls
+        `uvx unpark ...`; by default a shim maps that onto the local
+        package, uvx_shim overrides it (e.g. to make it fail)."""
         wrapper = Path(self.base.name) / "bin"
         wrapper.mkdir(exist_ok=True)
-        shim = wrapper / "unpark"
-        shim.write_text("#!/bin/sh\nexec python3 -m unpark \"$@\"\n")
+        shim = wrapper / "uvx"
+        if uvx_shim is None:
+            uvx_shim = ("#!/bin/sh\n"
+                        "shift  # drop the tool name\n"
+                        "exec python3 -m unpark \"$@\"\n")
+        shim.write_text(uvx_shim)
         os.chmod(shim, 0o755)
         env = dict(os.environ)
         env["PATH"] = f"{wrapper}{os.pathsep}{env.get('PATH', '')}"
@@ -276,6 +283,32 @@ class TestFishHookEndToEnd(ShellFixture):
         self.assertIn("the other project", p.stdout)  # switch → briefing
         self.assertNotIn("photo-globe", p.stdout)     # entry+same project:
         # silent (last_dir seeded on first call, then same root)
+
+    def test_failing_uv_reported_once_per_session(self):
+        rc, _, _ = self.cli("shell", "fish", "--install")
+        self.assertEqual(rc, 0)
+        conf = shell_config_path("fish")
+        for n in (1, 2, 3):
+            (Path(self.base.name) / f"d{n}").mkdir(exist_ok=True)
+        p = self.fish_run(f"""
+            source {conf}
+            cd {Path(self.base.name) / 'd1'}
+            __unpark_dir_change_hook
+            cd {Path(self.base.name) / 'd2'}
+            __unpark_dir_change_hook
+            cd {Path(self.base.name) / 'd3'}
+            __unpark_dir_change_hook
+        """, uvx_shim=("#!/bin/sh\n"
+                       "echo 'uvx: error: mock failure' >&2\n"
+                       "exit 1\n"))
+        self.assertEqual(p.returncode, 0, p.stderr)
+        # three failing directory changes, one report per session
+        self.assertEqual(p.stderr.count("unpark cd-hook failed"), 1)
+        # ...with the file the hook was called from and the error
+        self.assertIn(str(conf), p.stderr)
+        self.assertIn("mock failure", p.stderr)
+        # nothing leaked into the prompt
+        self.assertEqual(p.stdout.strip(), "")
 
 
 if __name__ == "__main__":

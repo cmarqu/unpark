@@ -133,9 +133,12 @@ Every time you change into a project directory, the terminal briefing runs
 automatically. In a git repo without a briefing you get a one-liner offering
 `unpark init`; with `UNPARK_CD_AUTO_INIT=1` in your environment the template
 is created at the repo root automatically. Moving within one project stays
-silent, and the hook never fails your prompt. The managed block lives in
-`~/.config/fish/conf.d/unpark.fish` and never touches your own config files:
-`unpark shell fish` prints the generated script, and
+silent, and the hook never fails your prompt. The hook runs unpark through
+`uvx`, so uv's cache provides the package — no separate install. If the
+command fails, the hook prints the file it came from and the error message,
+once per shell session. The managed block lives in
+`~/.config/fish/conf.d/unpark.fish` and never touches your own config
+files: `unpark shell fish` prints the generated script, and
 `unpark shell fish --uninstall` removes it again.
 
 ## Plays well with task runners

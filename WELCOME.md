@@ -34,8 +34,10 @@ views over a human-readable `WELCOME.md`, live git facts, and managed recipes.
 The fish directory-change hook answers issue #1. `unpark shell fish
 --install` writes a managed, version-stamped block to
 `~/.config/fish/conf.d/unpark.fish` that wraps `fish_prompt` once (the
-direnv pattern) and runs `unpark cd-hook DIR --from PREV` on every
-directory change.
+direnv pattern) and runs `uvx unpark cd-hook DIR --from PREV` on
+every directory change. uv's cache provides the package, so nothing
+is installed ahead of time; a failing command is reported with its
+file and error, once per session.
 
 Entering a project prints its terminal briefing; entering a git repo
 without one offers `unpark init`, or creates the template at the repo

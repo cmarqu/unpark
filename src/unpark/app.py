@@ -2463,9 +2463,22 @@ _FISH_MARKER_END = "# <<< unpark:cd-hook:end <<<"
 # Runs on every directory change in an interactive fish shell. fish has
 # no chpwd hook, so the block wraps fish_prompt once — the same trick
 # `direnv fish` uses: copy the existing prompt, call ours first, then the
-# original. The heavy lifting (project lookup, briefing) stays in Python
-# via `unpark cd-hook`, so the WELCOME.md location rules live in one place.
+# original. unpark runs through `uvx` (uv keeps the package in its cache,
+# so nothing has to be installed ahead of time); the heavy lifting
+# (project lookup, briefing) stays in Python via `unpark cd-hook`, so
+# the WELCOME.md location rules live in one place. A failing command is
+# reported — with the file it came from — once per shell session.
 _FISH_HOOK_BODY = """\
+function __unpark_hook_error
+    set -q __unpark_hook_error_shown
+    and return
+    set -g __unpark_hook_error_shown 1
+    printf "unpark cd-hook failed (file: %s):\n" (status filename) >&2
+    if test (count $argv) -gt 0
+        printf "%s\n" $argv[1] >&2
+    end
+end
+
 function __unpark_dir_change_hook
     set -q __unpark_last_dir
     or set -g __unpark_last_dir (pwd)
@@ -2475,8 +2488,17 @@ function __unpark_dir_change_hook
     end
     set -l prev $__unpark_last_dir
     set -g __unpark_last_dir "$now"
-    if command -q unpark
-        command unpark cd-hook "$now" --from "$prev"
+    if not command -q uvx
+        __unpark_hook_error "uvx not found — install uv: https://docs.astral.sh/uv/"
+        return
+    end
+    set -l output (uvx unpark cd-hook "$now" --from "$prev" 2>&1)
+    if test $status -ne 0
+        __unpark_hook_error "$output"
+        return
+    end
+    if test -n "$output"
+        printf "%s\n" "$output"
     end
 end
 
@@ -2594,8 +2616,11 @@ def cmd_shell(target: str, install: bool = False,
     _upsert_shell_block(path, _FISH_MARKER_START, _FISH_MARKER_END,
                         _fish_block())
     print(f"installed fish directory-change hook: {path}")
-    print("new fish shells now run the briefing when you change into a "
-          "project, and offer `unpark init` in repos without one")
+    print("new fish shells now run the briefing via `uvx unpark` "
+          "(cached by uv) when you change into a project, and offer "
+          "`unpark init` in repos without one; a failing command is "
+          "reported with the file it came from, once per shell "
+          "session")
     return 0
 
 
@@ -2921,11 +2946,17 @@ What happens on a directory change:
 Mechanics: fish has no directory-change hook, so the block wraps
 `fish_prompt` exactly once (the same trick `direnv fish` uses): your
 existing prompt is copied and called as before, with the hook in
-front. The project lookup runs in Python
-(`unpark cd-hook DIR --from PREV`), so the WELCOME.md location rules
-stay in one place. `unpark shell fish` without flags prints the
-generated script; `--uninstall` removes the block and keeps anything
-you added to the file by hand.
+front. The hook runs `uvx unpark cd-hook DIR --from PREV` — uv keeps
+the unpark package in its cache, so nothing has to be installed ahead
+of time (the first run may take a few seconds until the cache is
+warm). The project lookup itself stays in Python, so the WELCOME.md
+location rules live in one place. If the command fails (uv missing,
+no network, a cached unpark too old to know `cd-hook`), the hook
+prints the conf.d file it came from and the error message — once per
+shell session; `uv tool upgrade unpark` refreshes a stale cache.
+`unpark shell fish` without flags prints the generated script;
+`--uninstall` removes the block and keeps anything you added to the
+file by hand.
 
 bash and zsh have native `chpwd`/`PROMPT_COMMAND` hooks and are next.
 Running `unpark` on *git branch* changes (also requested in issue #1)
